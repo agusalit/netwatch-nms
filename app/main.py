@@ -1,25 +1,28 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 
-# Initialize FastAPI app
-app = FastAPI(title="Monitoring App")
+from app.models.database import init_db
+from app.services.scheduler import start_scheduler, stop_scheduler
+from app.services.polling import poll_all_devices
 
-# Wire up Jinja2 templates directory
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    poll_all_devices()  # one immediate sweep so the dashboard isn't empty on first load
+    start_scheduler()
+    yield
+    stop_scheduler()
+
+
+app = FastAPI(title="NMS", lifespan=lifespan)
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
 
-# 1. Health endpoint (used by external tools or monitoring to verify app is alive)
 @app.get("/health")
-def health_check():
+def health():
     return {"status": "ok"}
-
-
-# 2. Main dashboard page rendering the Jinja2 template
-@app.get("/", response_class=HTMLResponse)
-def read_dashboard(request: Request):
-    return templates.TemplateResponse(
-        request=request, 
-        name="index.html", 
-        context={}  
-    )
