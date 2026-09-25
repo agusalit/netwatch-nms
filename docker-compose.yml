@@ -1,0 +1,13 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # Mounts a persistent volume for your SQLite database
+      - sqlite_data:/app/data
+
+volumes:
+  sqlite_data:
