@@ -25,10 +25,11 @@ SYS_UPTIME_OID = "1.3.6.1.2.1.1.3.0"
 
 
 def check_icmp(ip_address: str):
-    """Returns (is_up, response_ms). privileged=False works without root/setcap
-    on some systems but is slower; prefer setcap on the venv's python binary."""
+    """Returns (is_up, response_ms). Uses an unprivileged (datagram) ICMP socket,
+    which works without root/setcap on Linux as long as net.ipv4.ping_group_range
+    permits it (check with: cat /proc/sys/net/ipv4/ping_group_range)."""
     try:
-        result = icmp_ping(ip_address, count=1, timeout=PING_TIMEOUT_SECONDS, privileged=True)
+        result = icmp_ping(ip_address, count=1, timeout=PING_TIMEOUT_SECONDS, privileged=False)
         return result.is_alive, (result.avg_rtt if result.is_alive else None)
     except Exception as exc:
         logger.warning(f"ICMP check failed for {ip_address}: {exc}")

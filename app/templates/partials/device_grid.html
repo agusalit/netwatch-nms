@@ -1,0 +1,43 @@
+{% for group_name, devices in grouped_devices.items() %}
+<section class="group-section">
+    <h2>{{ group_name }} <span class="count">({{ devices|length }})</span></h2>
+
+    {% if devices %}
+    <div class="card-grid">
+        {% for d in devices %}
+        <div class="device-card {{ 'status-up' if d.is_up else ('status-down' if d.is_up is not none else 'status-unknown') }}">
+            <div class="card-header">
+                <span class="status-dot"></span>
+                <strong>{{ d.name }}</strong>
+                <button class="btn-delete"
+                        hx-delete="/devices/{{ d.id }}"
+                        hx-target="#device-grid"
+                        hx-swap="innerHTML"
+                        hx-confirm="Remove {{ d.name }}?">×</button>
+            </div>
+            <div class="card-body">
+                <p class="ip">{{ d.ip_address }}</p>
+                <p class="meta">
+                    {% if d.is_up is none %}
+                        Not checked yet
+                    {% elif d.is_up %}
+                        Up · {{ "%.1f"|format(d.last_response_ms) if d.last_response_ms else "?" }} ms
+                    {% else %}
+                        Down
+                    {% endif %}
+                </p>
+                {% if d.monitor_type.value == 'icmp_snmp' and d.snmp_sys_name %}
+                <p class="snmp-info">{{ d.snmp_sys_name }} · uptime {{ d.snmp_uptime }}</p>
+                {% endif %}
+                {% if d.last_checked_at %}
+                <p class="timestamp">Last checked: {{ d.last_checked_at.strftime("%H:%M:%S") }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">No devices in this group yet.</p>
+    {% endif %}
+</section>
+{% endfor %}

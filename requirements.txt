@@ -24,6 +24,7 @@ Pygments==2.21.0
 pysnmp==7.1.29
 pytest==9.1.1
 python-dotenv==1.2.3
+python-multipart==0.0.32
 python-telegram-bot==22.8
 PyYAML==6.0.3
 requests==2.34.2

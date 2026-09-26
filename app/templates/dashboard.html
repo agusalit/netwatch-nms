@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetWatch NMS</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body>
+    <header class="topbar">
+        <h1>NetWatch <span class="accent">NMS</span></h1>
+        <button class="btn-primary" onclick="document.getElementById('add-device-modal').classList.toggle('hidden')">
+            + Add Device
+        </button>
+    </header>
+
+    <main class="container">
+        <!-- Live status grid — polls itself every 5s via HTMX, no page reload -->
+        <div id="device-grid"
+             hx-get="/partials/device-grid"
+             hx-trigger="load, every 5s"
+             hx-swap="innerHTML">
+            <p class="muted">Loading devices…</p>
+        </div>
+    </main>
+
+    <!-- Add Device modal -->
+    <div id="add-device-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Add Device</h2>
+            <form id="add-device-form"
+                  hx-post="/devices"
+                  hx-target="#device-grid"
+                  hx-swap="innerHTML">
+
+                <label>Name</label>
+                <input type="text" name="name" required placeholder="e.g. Room 204 AP">
+
+                <label>IP Address</label>
+                <input type="text" name="ip_address" required placeholder="192.168.1.10">
+
+                <label>Group</label>
+                <select name="group">
+                    {% for g in groups %}
+                    <option value="{{ g.value }}">{{ g.value }}</option>
+                    {% endfor %}
+                </select>
+
+                <label>Monitor Type</label>
+                <select name="monitor_type" onchange="document.getElementById('snmp-fields').classList.toggle('hidden', this.value !== 'icmp_snmp')">
+                    {% for m in monitor_types %}
+                    <option value="{{ m.value }}">{{ m.value }}</option>
+                    {% endfor %}
+                </select>
+
+                <div id="snmp-fields" class="hidden">
+                    <label>SNMP Community</label>
+                    <input type="text" name="snmp_community" value="public">
+                    <label>SNMP Version</label>
+                    <select name="snmp_version">
+                        <option value="2c">v2c</option>
+                        <option value="1">v1</option>
+                    </select>
+                    <label>SNMP Port</label>
+                    <input type="number" name="snmp_port" value="161">
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="document.getElementById('add-device-modal').classList.add('hidden')">Cancel</button>
+                    <button type="submit" class="btn-primary">Add</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.body.addEventListener('htmx:afterRequest', function (evt) {
+            if (evt.detail.elt.id === 'add-device-form' && evt.detail.successful) {
+                document.getElementById('add-device-modal').classList.add('hidden');
+                evt.detail.elt.reset();
+            }
+        });
+    </script>
+</body>
+</html>
