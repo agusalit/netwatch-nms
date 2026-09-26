@@ -1,13 +1,19 @@
 services:
-  web:
+  netwatch:
     build: .
+    container_name: netwatch-nms
     ports:
       - "8000:8000"
-    env_file:
-      - .env
     volumes:
-      # Mounts a persistent volume for your SQLite database
-      - sqlite_data:/app/data
+      - ./data:/app/data
+    environment:
+      - DATABASE_URL=sqlite:////app/data/netwatch.db
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - PING_INTERVAL_SECONDS=${PING_INTERVAL_SECONDS:-30}
+      - PING_TIMEOUT_SECONDS=${PING_TIMEOUT_SECONDS:-2}
+      - STATUS_HISTORY_KEEP=${STATUS_HISTORY_KEEP:-30}
 
-volumes:
-  sqlite_data:
+    sysctls:
+      - net.ipv4.ping_group_range=0 2147483647
+    restart: unless-stopped
