@@ -9,6 +9,11 @@
             <div class="card-header">
                 <span class="status-dot"></span>
                 <strong>{{ d.name }}</strong>
+                <button class="btn-edit"
+                        hx-get="/devices/{{ d.id }}/edit"
+                        hx-target="#device-form-container"
+                        hx-swap="innerHTML"
+                        onclick="document.getElementById('add-device-modal').classList.remove('hidden')">✎</button>
                 <button class="btn-delete"
                         hx-delete="/devices/{{ d.id }}"
                         hx-target="#device-grid"

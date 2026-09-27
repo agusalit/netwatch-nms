@@ -24,8 +24,8 @@ logger = logging.getLogger("nms.polling")
 SYS_NAME_OID = "1.3.6.1.2.1.1.5.0"
 SYS_UPTIME_OID = "1.3.6.1.2.1.1.3.0"
 
-# IF-MIB interface counters — {index} is filled in per-device with
-# device.snmp_if_index (defaults to 1, the common single-interface case).
+# IF-MIB interface counters — {index} is filled in per-interface at poll time,
+# since a device may have multiple interfaces tracked (device.if_index_list).
 IF_IN_OCTETS_OID = "1.3.6.1.2.1.2.2.1.10.{index}"
 IF_OUT_OCTETS_OID = "1.3.6.1.2.1.2.2.1.16.{index}"
 IF_IN_ERRORS_OID = "1.3.6.1.2.1.2.2.1.14.{index}"
@@ -55,8 +55,12 @@ def _safe_int(varbind_value):
         return None
 
 
-async def _check_snmp_async(device: Device):
-    idx = device.snmp_if_index or 1
+def _snmp_community(device: Device):
+    return CommunityData(device.snmp_community, mpModel=0 if device.snmp_version == "1" else 1)
+
+
+async def _check_snmp_sysinfo_async(device: Device):
+    """One-time-per-poll sys info fetch (sysName, sysUpTime) — not per-interface."""
     try:
         transport = await UdpTransportTarget.create(
             (device.ip_address, device.snmp_port),
@@ -65,46 +69,81 @@ async def _check_snmp_async(device: Device):
         )
         error_indication, error_status, _, var_binds = await get_cmd(
             SnmpEngine(),
-            CommunityData(device.snmp_community, mpModel=0 if device.snmp_version == "1" else 1),
+            _snmp_community(device),
             transport,
             ContextData(),
             ObjectType(ObjectIdentity(SYS_NAME_OID)),
             ObjectType(ObjectIdentity(SYS_UPTIME_OID)),
-            ObjectType(ObjectIdentity(IF_IN_OCTETS_OID.format(index=idx))),
-            ObjectType(ObjectIdentity(IF_OUT_OCTETS_OID.format(index=idx))),
-            ObjectType(ObjectIdentity(IF_IN_ERRORS_OID.format(index=idx))),
-            ObjectType(ObjectIdentity(IF_OUT_ERRORS_OID.format(index=idx))),
-            ObjectType(ObjectIdentity(IF_IN_DISCARDS_OID.format(index=idx))),
-            ObjectType(ObjectIdentity(IF_OUT_DISCARDS_OID.format(index=idx))),
         )
         if error_indication or error_status:
             logger.warning(
-                f"SNMP GET failed for {device.ip_address}: "
+                f"SNMP sysinfo GET failed for {device.ip_address}: "
                 f"error_indication={error_indication}, error_status={error_status}"
             )
             return None
-
-        return {
-            "sys_name": str(var_binds[0][1]),
-            "sys_uptime": str(var_binds[1][1]),
-            "in_octets": _safe_int(var_binds[2][1]),
-            "out_octets": _safe_int(var_binds[3][1]),
-            "in_errors": _safe_int(var_binds[4][1]),
-            "out_errors": _safe_int(var_binds[5][1]),
-            "in_discards": _safe_int(var_binds[6][1]),
-            "out_discards": _safe_int(var_binds[7][1]),
-        }
+        return {"sys_name": str(var_binds[0][1]), "sys_uptime": str(var_binds[1][1])}
     except Exception as exc:
-        logger.warning(f"SNMP check failed for {device.ip_address}: {exc}")
+        logger.warning(f"SNMP sysinfo check failed for {device.ip_address}: {exc}")
         return None
 
 
+async def _check_snmp_interface_async(device: Device, if_index: int):
+    """Interface counters for one ifIndex. Called once per interface in
+    device.if_index_list, so a multi-interface device gets multiple TrafficLog
+    rows per poll — one per interface."""
+    try:
+        transport = await UdpTransportTarget.create(
+            (device.ip_address, device.snmp_port),
+            timeout=PING_TIMEOUT_SECONDS,
+            retries=0,
+        )
+        error_indication, error_status, _, var_binds = await get_cmd(
+            SnmpEngine(),
+            _snmp_community(device),
+            transport,
+            ContextData(),
+            ObjectType(ObjectIdentity(IF_IN_OCTETS_OID.format(index=if_index))),
+            ObjectType(ObjectIdentity(IF_OUT_OCTETS_OID.format(index=if_index))),
+            ObjectType(ObjectIdentity(IF_IN_ERRORS_OID.format(index=if_index))),
+            ObjectType(ObjectIdentity(IF_OUT_ERRORS_OID.format(index=if_index))),
+            ObjectType(ObjectIdentity(IF_IN_DISCARDS_OID.format(index=if_index))),
+            ObjectType(ObjectIdentity(IF_OUT_DISCARDS_OID.format(index=if_index))),
+        )
+        if error_indication or error_status:
+            logger.warning(
+                f"SNMP interface counters GET failed for {device.ip_address} "
+                f"ifIndex={if_index}: error_indication={error_indication}, error_status={error_status}"
+            )
+            return None
+        return {
+            "in_octets": _safe_int(var_binds[0][1]),
+            "out_octets": _safe_int(var_binds[1][1]),
+            "in_errors": _safe_int(var_binds[2][1]),
+            "out_errors": _safe_int(var_binds[3][1]),
+            "in_discards": _safe_int(var_binds[4][1]),
+            "out_discards": _safe_int(var_binds[5][1]),
+        }
+    except Exception as exc:
+        logger.warning(f"SNMP interface check failed for {device.ip_address} ifIndex={if_index}: {exc}")
+        return None
+
+
+async def _check_snmp_all_async(device: Device):
+    sysinfo = await _check_snmp_sysinfo_async(device)
+    interfaces = {}
+    for idx in device.if_index_list:
+        counters = await _check_snmp_interface_async(device, idx)
+        if counters:
+            interfaces[idx] = counters
+    return {"sysinfo": sysinfo, "interfaces": interfaces}
+
+
 def check_snmp(device: Device):
-    """Sync wrapper around the async pysnmp 7.x call. Safe to call with
+    """Sync wrapper around the async pysnmp 7.x calls. Safe to call with
     asyncio.run() here because APScheduler runs jobs in a worker thread,
     not on FastAPI's event loop, so there's no already-running-loop conflict.
-    Returns a dict of sys info + raw interface counters, or None on failure."""
-    return asyncio.run(_check_snmp_async(device))
+    Returns {"sysinfo": {...} | None, "interfaces": {if_index: {...counters}}}."""
+    return asyncio.run(_check_snmp_all_async(device))
 
 
 def send_telegram_alert(message: str):
@@ -141,18 +180,19 @@ def poll_all_devices():
 
             if is_up and device.monitor_type == MonitorType.ICMP_SNMP:
                 snmp_result = check_snmp(device)
-                if snmp_result:
-                    device.snmp_sys_name = snmp_result["sys_name"]
-                    device.snmp_uptime = snmp_result["sys_uptime"]
+                if snmp_result["sysinfo"]:
+                    device.snmp_sys_name = snmp_result["sysinfo"]["sys_name"]
+                    device.snmp_uptime = snmp_result["sysinfo"]["sys_uptime"]
+                for idx, counters in snmp_result["interfaces"].items():
                     db.add(TrafficLog(
                         device_id=device.id,
-                        if_index=device.snmp_if_index or 1,
-                        in_octets=snmp_result["in_octets"],
-                        out_octets=snmp_result["out_octets"],
-                        in_errors=snmp_result["in_errors"],
-                        out_errors=snmp_result["out_errors"],
-                        in_discards=snmp_result["in_discards"],
-                        out_discards=snmp_result["out_discards"],
+                        if_index=idx,
+                        in_octets=counters["in_octets"],
+                        out_octets=counters["out_octets"],
+                        in_errors=counters["in_errors"],
+                        out_errors=counters["out_errors"],
+                        in_discards=counters["in_discards"],
+                        out_discards=counters["out_discards"],
                     ))
 
             device.is_up = is_up

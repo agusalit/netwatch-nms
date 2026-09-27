@@ -30,8 +30,11 @@ class Device(Base):
     snmp_community = Column(String, default="public")
     snmp_version = Column(String, default="2c")  # "1", "2c", or "3"
     snmp_port = Column(Integer, default=161)
-
-    snmp_if_index = Column(Integer, default=1)
+    # Which network interface(s)' counters to poll on this device (IF-MIB
+    # ifIndex values). Comma-separated so one device can have multiple
+    # interfaces tracked (e.g. a managed switch) — each gets its own
+    # TrafficLog row per poll. Defaults to "1", the common single-interface case.
+    snmp_if_indexes = Column(String, default="1")
 
     # Live status, updated by the polling service
     is_up = Column(Boolean, default=None, nullable=True)  # None = not yet checked
@@ -46,3 +49,15 @@ class Device(Base):
     traffic_logs = relationship(
         "TrafficLog", back_populates="device", cascade="all, delete-orphan"
     )
+
+    @property
+    def if_index_list(self):
+        """Parses snmp_if_indexes ("1,2,4") into [1, 2, 4]. Falls back to
+        [1] if the field is empty or contains no valid integers."""
+        if not self.snmp_if_indexes:
+            return [1]
+        parsed = [
+            int(part.strip()) for part in self.snmp_if_indexes.split(",")
+            if part.strip().isdigit()
+        ]
+        return parsed or [1]

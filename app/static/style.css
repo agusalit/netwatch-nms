@@ -93,3 +93,16 @@ body {
     background: var(--bg); border: 1px solid var(--border); border-radius: 5px; color: var(--text);
 }
 .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.2rem; }
+.form-error {
+    color: var(--down);
+    font-size: 0.85rem;
+    margin-top: 0.6rem;
+    min-height: 0;
+}
+.form-error:empty { display: none; }
+.field-hint { color: var(--muted); font-size: 0.75rem; margin: 0.2rem 0 0; }
+.btn-edit {
+    background: none; border: none; color: var(--muted);
+    font-size: 0.9rem; cursor: pointer; margin-left: auto;
+}
+.btn-edit:hover { color: var(--accent); }
