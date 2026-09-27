@@ -13,6 +13,7 @@ class DeviceCreate(BaseModel):
     snmp_community: Optional[str] = "public"
     snmp_version: Optional[str] = "2c"
     snmp_port: Optional[int] = 161
+    snmp_if_index: Optional[int] = 1
 
 
 class DeviceUpdate(BaseModel):
@@ -23,3 +24,4 @@ class DeviceUpdate(BaseModel):
     snmp_community: Optional[str] = None
     snmp_version: Optional[str] = None
     snmp_port: Optional[int] = None
+    snmp_if_index: Optional[int] = None

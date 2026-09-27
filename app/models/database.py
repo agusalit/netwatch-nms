@@ -23,5 +23,5 @@ def get_db():
 
 def init_db():
     # Import models here so they're registered on Base before create_all runs.
-    from app.models import device, status_log  # noqa: F401
+    from app.models import device, status_log, traffic_log  # noqa: F401
     Base.metadata.create_all(bind=engine)

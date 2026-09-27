@@ -17,11 +17,21 @@ from app.config import (
 from app.models.database import SessionLocal
 from app.models.device import Device, MonitorType
 from app.models.status_log import StatusLog
+from app.models.traffic_log import TrafficLog
 
 logger = logging.getLogger("nms.polling")
 
 SYS_NAME_OID = "1.3.6.1.2.1.1.5.0"
 SYS_UPTIME_OID = "1.3.6.1.2.1.1.3.0"
+
+# IF-MIB interface counters — {index} is filled in per-device with
+# device.snmp_if_index (defaults to 1, the common single-interface case).
+IF_IN_OCTETS_OID = "1.3.6.1.2.1.2.2.1.10.{index}"
+IF_OUT_OCTETS_OID = "1.3.6.1.2.1.2.2.1.16.{index}"
+IF_IN_ERRORS_OID = "1.3.6.1.2.1.2.2.1.14.{index}"
+IF_OUT_ERRORS_OID = "1.3.6.1.2.1.2.2.1.20.{index}"
+IF_IN_DISCARDS_OID = "1.3.6.1.2.1.2.2.1.13.{index}"
+IF_OUT_DISCARDS_OID = "1.3.6.1.2.1.2.2.1.19.{index}"
 
 
 def check_icmp(ip_address: str):
@@ -36,7 +46,17 @@ def check_icmp(ip_address: str):
         return False, None
 
 
+def _safe_int(varbind_value):
+    """SNMP GET can return non-numeric error types (e.g. noSuchObject) for an
+    OID the device doesn't support — coerce those to None instead of raising."""
+    try:
+        return int(varbind_value)
+    except (ValueError, TypeError):
+        return None
+
+
 async def _check_snmp_async(device: Device):
+    idx = device.snmp_if_index or 1
     try:
         transport = await UdpTransportTarget.create(
             (device.ip_address, device.snmp_port),
@@ -50,21 +70,40 @@ async def _check_snmp_async(device: Device):
             ContextData(),
             ObjectType(ObjectIdentity(SYS_NAME_OID)),
             ObjectType(ObjectIdentity(SYS_UPTIME_OID)),
+            ObjectType(ObjectIdentity(IF_IN_OCTETS_OID.format(index=idx))),
+            ObjectType(ObjectIdentity(IF_OUT_OCTETS_OID.format(index=idx))),
+            ObjectType(ObjectIdentity(IF_IN_ERRORS_OID.format(index=idx))),
+            ObjectType(ObjectIdentity(IF_OUT_ERRORS_OID.format(index=idx))),
+            ObjectType(ObjectIdentity(IF_IN_DISCARDS_OID.format(index=idx))),
+            ObjectType(ObjectIdentity(IF_OUT_DISCARDS_OID.format(index=idx))),
         )
         if error_indication or error_status:
-            return None, None
-        sys_name = str(var_binds[0][1])
-        sys_uptime = str(var_binds[1][1])
-        return sys_name, sys_uptime
+            logger.warning(
+                f"SNMP GET failed for {device.ip_address}: "
+                f"error_indication={error_indication}, error_status={error_status}"
+            )
+            return None
+
+        return {
+            "sys_name": str(var_binds[0][1]),
+            "sys_uptime": str(var_binds[1][1]),
+            "in_octets": _safe_int(var_binds[2][1]),
+            "out_octets": _safe_int(var_binds[3][1]),
+            "in_errors": _safe_int(var_binds[4][1]),
+            "out_errors": _safe_int(var_binds[5][1]),
+            "in_discards": _safe_int(var_binds[6][1]),
+            "out_discards": _safe_int(var_binds[7][1]),
+        }
     except Exception as exc:
         logger.warning(f"SNMP check failed for {device.ip_address}: {exc}")
-        return None, None
+        return None
 
 
 def check_snmp(device: Device):
     """Sync wrapper around the async pysnmp 7.x call. Safe to call with
     asyncio.run() here because APScheduler runs jobs in a worker thread,
-    not on FastAPI's event loop, so there's no already-running-loop conflict."""
+    not on FastAPI's event loop, so there's no already-running-loop conflict.
+    Returns a dict of sys info + raw interface counters, or None on failure."""
     return asyncio.run(_check_snmp_async(device))
 
 
@@ -101,9 +140,20 @@ def poll_all_devices():
             is_up, response_ms = check_icmp(device.ip_address)
 
             if is_up and device.monitor_type == MonitorType.ICMP_SNMP:
-                sys_name, sys_uptime = check_snmp(device)
-                device.snmp_sys_name = sys_name
-                device.snmp_uptime = sys_uptime
+                snmp_result = check_snmp(device)
+                if snmp_result:
+                    device.snmp_sys_name = snmp_result["sys_name"]
+                    device.snmp_uptime = snmp_result["sys_uptime"]
+                    db.add(TrafficLog(
+                        device_id=device.id,
+                        if_index=device.snmp_if_index or 1,
+                        in_octets=snmp_result["in_octets"],
+                        out_octets=snmp_result["out_octets"],
+                        in_errors=snmp_result["in_errors"],
+                        out_errors=snmp_result["out_errors"],
+                        in_discards=snmp_result["in_discards"],
+                        out_discards=snmp_result["out_discards"],
+                    ))
 
             device.is_up = is_up
             device.last_response_ms = response_ms

@@ -52,6 +52,7 @@ def create_device(
     snmp_community: str = Form("public"),
     snmp_version: str = Form("2c"),
     snmp_port: int = Form(161),
+    snmp_if_index: int = Form(1),
 ):
     device = Device(
         name=name,
@@ -61,6 +62,7 @@ def create_device(
         snmp_community=snmp_community,
         snmp_version=snmp_version,
         snmp_port=snmp_port,
+        snmp_if_index=snmp_if_index,
     )
     db.add(device)
     db.commit()

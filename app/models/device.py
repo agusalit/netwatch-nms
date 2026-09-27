@@ -31,6 +31,8 @@ class Device(Base):
     snmp_version = Column(String, default="2c")  # "1", "2c", or "3"
     snmp_port = Column(Integer, default=161)
 
+    snmp_if_index = Column(Integer, default=1)
+
     # Live status, updated by the polling service
     is_up = Column(Boolean, default=None, nullable=True)  # None = not yet checked
     last_response_ms = Column(Float, nullable=True)
@@ -40,4 +42,7 @@ class Device(Base):
 
     status_logs = relationship(
         "StatusLog", back_populates="device", cascade="all, delete-orphan"
+    )
+    traffic_logs = relationship(
+        "TrafficLog", back_populates="device", cascade="all, delete-orphan"
     )
