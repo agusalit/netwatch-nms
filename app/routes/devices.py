@@ -5,14 +5,56 @@ from sqlalchemy.orm import Session
 
 from app.models.database import get_db
 from app.models.device import Device, DeviceGroup, MonitorType
+from app.models.status_log import StatusLog
 from app.templating import templates
 
 router = APIRouter()
 
 
+def _sparkline_points(values, width=60, height=20):
+    """Turns a list of response-time floats into SVG polyline 'x,y ...' points,
+    normalized to fit the given viewBox. Returns "" if there's not enough
+    data to draw a meaningful line."""
+    if not values or len(values) < 2:
+        return ""
+    lo, hi = min(values), max(values)
+    rng = (hi - lo) or 1  # avoid divide-by-zero when all values are equal
+    n = len(values)
+    points = []
+    for i, v in enumerate(values):
+        x = (i / (n - 1)) * width
+        y = height - ((v - lo) / rng) * height
+        points.append(f"{x:.1f},{y:.1f}")
+    return " ".join(points)
+
+
+def _attach_stats(db: Session, devices):
+    """Attaches uptime_pct and sparkline (computed, not persisted) to each
+    device for the dashboard. One query per device — fine at internship/
+    thesis scale (a handful to a few dozen devices); would want a single
+    batched query if this ever needs to scale to hundreds."""
+    for d in devices:
+        logs = (
+            db.query(StatusLog)
+            .filter(StatusLog.device_id == d.id)
+            .order_by(StatusLog.checked_at.asc())
+            .all()
+        )
+        if logs:
+            up_count = sum(1 for l in logs if l.is_up)
+            d.uptime_pct = round((up_count / len(logs)) * 100, 1)
+            response_history = [l.response_ms for l in logs if l.is_up and l.response_ms is not None]
+            d.sparkline = _sparkline_points(response_history)
+        else:
+            d.uptime_pct = None
+            d.sparkline = ""
+    return devices
+
+
 def _grouped_devices(db: Session):
     """Returns {group_label: [devices]} in a fixed, sensible display order."""
     devices = db.query(Device).order_by(Device.name).all()
+    _attach_stats(db, devices)
     grouped = {g.value: [] for g in DeviceGroup}
     for d in devices:
         grouped[d.group.value].append(d)

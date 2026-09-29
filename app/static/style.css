@@ -66,6 +66,8 @@ body {
 .ip { font-family: monospace; color: var(--muted); margin: 0.3rem 0; }
 .meta { margin: 0.2rem 0; font-size: 0.9rem; }
 .snmp-info, .timestamp { margin: 0.1rem 0; font-size: 0.78rem; color: var(--muted); }
+.snmp-warning { margin: 0.15rem 0; font-size: 0.78rem; color: #f59e0b; }
+.sparkline { display: block; width: 60px; height: 20px; margin: 0.3rem 0; color: var(--accent); }
 .muted { color: var(--muted); }
 
 .btn-primary {

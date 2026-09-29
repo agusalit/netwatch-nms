@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -12,7 +13,8 @@ from app.routes import devices
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    poll_all_devices()  # one immediate sweep so the dashboard isn't empty on first load
+
+    await asyncio.to_thread(poll_all_devices)
     start_scheduler()
     yield
     stop_scheduler()

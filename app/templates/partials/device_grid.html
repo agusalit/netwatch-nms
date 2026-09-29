@@ -30,7 +30,18 @@
                     {% else %}
                         Down
                     {% endif %}
+                    {% if d.uptime_pct is not none %}
+                        · {{ d.uptime_pct }}% uptime
+                    {% endif %}
                 </p>
+                {% if d.sparkline %}
+                <svg class="sparkline" viewBox="0 0 60 20" preserveAspectRatio="none">
+                    <polyline points="{{ d.sparkline }}" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                {% endif %}
+                {% if d.monitor_type.value == 'icmp_snmp' and d.is_up and not d.snmp_sys_name %}
+                <p class="snmp-warning">⚠ SNMP not responding</p>
+                {% endif %}
                 {% if d.monitor_type.value == 'icmp_snmp' and d.snmp_sys_name %}
                 <p class="snmp-info">{{ d.snmp_sys_name }} · uptime {{ d.snmp_uptime }}</p>
                 {% endif %}
