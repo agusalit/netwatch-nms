@@ -1,14 +1,28 @@
+from datetime import timezone
+from zoneinfo import ZoneInfo
+
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.config import DISPLAY_TIMEZONE
 from app.models.database import get_db
 from app.models.device import Device, DeviceGroup, MonitorType
 from app.models.status_log import StatusLog
 from app.templating import templates
 
 router = APIRouter()
+_DISPLAY_TZ = ZoneInfo(DISPLAY_TIMEZONE)
+
+
+def _to_local(dt):
+    """Converts a naive UTC datetime (as stored in the DB) to a tz-aware
+    local datetime for display only. Storage stays UTC throughout — this
+    is purely a presentation-layer conversion."""
+    if dt is None:
+        return None
+    return dt.replace(tzinfo=timezone.utc).astimezone(_DISPLAY_TZ)
 
 
 def _sparkline_points(values, width=60, height=20):
@@ -48,6 +62,7 @@ def _attach_stats(db: Session, devices):
         else:
             d.uptime_pct = None
             d.sparkline = ""
+        d.last_checked_local = _to_local(d.last_checked_at)
     return devices
 
 

@@ -45,8 +45,8 @@
                 {% if d.monitor_type.value == 'icmp_snmp' and d.snmp_sys_name %}
                 <p class="snmp-info">{{ d.snmp_sys_name }} · uptime {{ d.snmp_uptime }}</p>
                 {% endif %}
-                {% if d.last_checked_at %}
-                <p class="timestamp">Last checked: {{ d.last_checked_at.strftime("%H:%M:%S") }}</p>
+                {% if d.last_checked_local %}
+                <p class="timestamp">Last checked: {{ d.last_checked_local.strftime("%H:%M:%S") }}</p>
                 {% endif %}
             </div>
         </div>
