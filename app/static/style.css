@@ -108,3 +108,23 @@ body {
     font-size: 0.9rem; cursor: pointer; margin-left: auto;
 }
 .btn-edit:hover { color: var(--accent); }
+
+.topbar-actions { display: flex; align-items: center; gap: 0.75rem; }
+.logout-link { text-decoration: none; display: inline-block; }
+
+.login-page {
+    display: flex; align-items: center; justify-content: center;
+    height: 100vh; margin: 0;
+}
+.login-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 2rem; width: 320px;
+}
+.login-card h1 { margin-top: 0; }
+.login-card label { display: block; margin-top: 0.7rem; font-size: 0.85rem; color: var(--muted); }
+.login-card input {
+    width: 100%; padding: 0.5rem; margin-top: 0.2rem;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 5px; color: var(--text);
+}
+.login-error { color: var(--down); font-size: 0.85rem; margin-top: 0.6rem; }
+.login-submit { width: 100%; margin-top: 1.2rem; }

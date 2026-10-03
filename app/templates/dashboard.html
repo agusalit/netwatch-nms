@@ -10,13 +10,16 @@
 <body>
     <header class="topbar">
         <h1>NetWatch <span class="accent">NMS</span></h1>
-        <button class="btn-primary"
-                hx-get="/devices/new"
-                hx-target="#device-form-container"
-                hx-swap="innerHTML"
-                onclick="document.getElementById('add-device-modal').classList.remove('hidden')">
-            + Add Device
-        </button>
+        <div class="topbar-actions">
+            <button class="btn-primary"
+                    hx-get="/devices/new"
+                    hx-target="#device-form-container"
+                    hx-swap="innerHTML"
+                    onclick="document.getElementById('add-device-modal').classList.remove('hidden')">
+                + Add Device
+            </button>
+            <a href="/logout" class="btn-secondary logout-link">Logout</a>
+        </div>
     </header>
 
     <main class="container">
@@ -29,7 +32,6 @@
         </div>
     </main>
 
-    <!-- Add/Edit Device modal — its inner form is swapped depending on which button was clicked -->
     <div id="add-device-modal" class="modal hidden">
         <div class="modal-content">
             <h2>Device</h2>

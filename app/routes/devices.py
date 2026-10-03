@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.auth import require_login
 from app.config import DISPLAY_TIMEZONE
 from app.models.database import get_db
 from app.models.device import Device, DeviceGroup, MonitorType
@@ -90,7 +91,7 @@ def _grid_response(request: Request, db: Session, error: str = ""):
 
 
 @router.get("/", response_class=HTMLResponse)
-def dashboard(request: Request, db: Session = Depends(get_db)):
+def dashboard(request: Request, db: Session = Depends(get_db), user: str = Depends(require_login)):
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
@@ -103,7 +104,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/partials/device-grid", response_class=HTMLResponse)
-def device_grid(request: Request, db: Session = Depends(get_db)):
+def device_grid(request: Request, db: Session = Depends(get_db), user: str = Depends(require_login)):
     """Polled by HTMX every few seconds to refresh live status without a full page reload."""
     return templates.TemplateResponse(
         request=request,
@@ -113,7 +114,7 @@ def device_grid(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/devices/new", response_class=HTMLResponse)
-def new_device_form(request: Request):
+def new_device_form(request: Request, user: str = Depends(require_login)):
     """Blank create form, loaded into the modal's swappable container."""
     return templates.TemplateResponse(
         request=request,
@@ -127,7 +128,7 @@ def new_device_form(request: Request):
 
 
 @router.get("/devices/{device_id}/edit", response_class=HTMLResponse)
-def edit_device_form(device_id: int, request: Request, db: Session = Depends(get_db)):
+def edit_device_form(device_id: int, request: Request, db: Session = Depends(get_db), user: str = Depends(require_login)):
     """Pre-filled edit form for an existing device, loaded into the same container."""
     device = db.query(Device).filter(Device.id == device_id).first()
     if not device:
@@ -147,6 +148,7 @@ def edit_device_form(device_id: int, request: Request, db: Session = Depends(get
 def create_device(
     request: Request,
     db: Session = Depends(get_db),
+    user: str = Depends(require_login),
     name: str = Form(...),
     ip_address: str = Form(...),
     group: DeviceGroup = Form(...),
@@ -180,6 +182,7 @@ def update_device(
     device_id: int,
     request: Request,
     db: Session = Depends(get_db),
+    user: str = Depends(require_login),
     name: str = Form(...),
     ip_address: str = Form(...),
     group: DeviceGroup = Form(...),
@@ -211,7 +214,7 @@ def update_device(
 
 
 @router.delete("/devices/{device_id}", response_class=HTMLResponse)
-def delete_device(device_id: int, request: Request, db: Session = Depends(get_db)):
+def delete_device(device_id: int, request: Request, db: Session = Depends(get_db), user: str = Depends(require_login)):
     device = db.query(Device).filter(Device.id == device_id).first()
     if device:
         db.delete(device)

@@ -9,9 +9,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.auth import require_login
 from app.models.database import Base, get_db
 from app.main import app
-
 
 TEST_DATABASE_URL = "sqlite:///:memory:"
 engine = create_engine(
@@ -31,6 +31,7 @@ def _override_get_db():
 
 
 app.dependency_overrides[get_db] = _override_get_db
+app.dependency_overrides[require_login] = lambda: "test-user"
 
 
 @pytest.fixture(scope="session", autouse=True)
