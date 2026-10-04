@@ -77,14 +77,28 @@ def _grouped_devices(db: Session):
     return grouped
 
 
+def _summary_counts(grouped):
+    """Up/down/unknown/total counts across every group, for the dashboard's
+    summary bar. Recomputed on every grid render (every 5s poll) so it's
+    always current, not cached."""
+    all_devices = [d for devs in grouped.values() for d in devs]
+    return {
+        "up": sum(1 for d in all_devices if d.is_up is True),
+        "down": sum(1 for d in all_devices if d.is_up is False),
+        "unknown": sum(1 for d in all_devices if d.is_up is None),
+        "total": len(all_devices),
+    }
+
+
 def _grid_response(request: Request, db: Session, error: str = ""):
     """Renders the device grid as the main HTMX-swapped content, plus an
     out-of-band update to the modal's #form-error div. On success, error=""
     clears any previously shown message; on a caught conflict (e.g. duplicate
     IP), error carries the message and the JS in dashboard.html keeps the
     modal open instead of closing it."""
+    grouped = _grouped_devices(db)
     grid_html = templates.env.get_template("partials/device_grid.html").render(
-        request=request, grouped_devices=_grouped_devices(db)
+        request=request, grouped_devices=grouped, summary=_summary_counts(grouped)
     )
     oob_html = f'<div id="form-error" hx-swap-oob="true" class="form-error">{error}</div>'
     return HTMLResponse(grid_html + oob_html)
@@ -92,11 +106,13 @@ def _grid_response(request: Request, db: Session, error: str = ""):
 
 @router.get("/", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db), user: str = Depends(require_login)):
+    grouped = _grouped_devices(db)
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
         context={
-            "grouped_devices": _grouped_devices(db),
+            "grouped_devices": grouped,
+            "summary": _summary_counts(grouped),
             "groups": list(DeviceGroup),
             "monitor_types": list(MonitorType),
         },
@@ -106,21 +122,25 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: str = Depen
 @router.get("/partials/device-grid", response_class=HTMLResponse)
 def device_grid(request: Request, db: Session = Depends(get_db), user: str = Depends(require_login)):
     """Polled by HTMX every few seconds to refresh live status without a full page reload."""
+    grouped = _grouped_devices(db)
     return templates.TemplateResponse(
         request=request,
         name="partials/device_grid.html",
-        context={"grouped_devices": _grouped_devices(db)},
+        context={"grouped_devices": grouped, "summary": _summary_counts(grouped)},
     )
 
 
 @router.get("/devices/new", response_class=HTMLResponse)
-def new_device_form(request: Request, user: str = Depends(require_login)):
-    """Blank create form, loaded into the modal's swappable container."""
+def new_device_form(request: Request, ip: str = "", user: str = Depends(require_login)):
+    """Blank create form, loaded into the modal's swappable container.
+    Accepts an optional ?ip= to prefill — used by the scan results' '+ Add'
+    buttons so the user doesn't have to retype a discovered IP."""
     return templates.TemplateResponse(
         request=request,
         name="partials/device_form.html",
         context={
             "device": None,
+            "prefill_ip": ip,
             "groups": list(DeviceGroup),
             "monitor_types": list(MonitorType),
         },
@@ -219,8 +239,9 @@ def delete_device(device_id: int, request: Request, db: Session = Depends(get_db
     if device:
         db.delete(device)
         db.commit()
+    grouped = _grouped_devices(db)
     return templates.TemplateResponse(
         request=request,
         name="partials/device_grid.html",
-        context={"grouped_devices": _grouped_devices(db)},
+        context={"grouped_devices": grouped, "summary": _summary_counts(grouped)},
     )

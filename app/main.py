@@ -11,7 +11,7 @@ from app.config import SESSION_SECRET_KEY
 from app.models.database import init_db
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.services.polling import poll_all_devices
-from app.routes import devices, auth
+from app.routes import devices, auth, scan
 
 logger = logging.getLogger("nms.startup")
 
@@ -40,6 +40,7 @@ app.add_middleware(SessionMiddleware, secret_key=_session_secret)
 
 app.include_router(auth.router)
 app.include_router(devices.router)
+app.include_router(scan.router)
 
 
 @app.get("/health")

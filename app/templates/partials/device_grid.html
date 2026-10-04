@@ -1,3 +1,13 @@
+{% if summary %}
+<div class="summary-bar">
+    <span class="summary-item up">{{ summary.up }} Up</span>
+    <span class="summary-item down">{{ summary.down }} Down</span>
+    {% if summary.unknown %}
+    <span class="summary-item unknown">{{ summary.unknown }} Unknown</span>
+    {% endif %}
+    <span class="summary-item total">{{ summary.total }} Total</span>
+</div>
+{% endif %}
 {% for group_name, devices in grouped_devices.items() %}
 <section class="group-section">
     <h2>{{ group_name }} <span class="count">({{ devices|length }})</span></h2>
@@ -20,35 +30,42 @@
                         hx-swap="innerHTML"
                         hx-confirm="Remove {{ d.name }}?">×</button>
             </div>
-            <div class="card-body">
-                <p class="ip">{{ d.ip_address }}</p>
-                <p class="meta">
-                    {% if d.is_up is none %}
-                        Not checked yet
-                    {% elif d.is_up %}
-                        Up · {{ "%.1f"|format(d.last_response_ms) if d.last_response_ms else "?" }} ms
-                    {% else %}
-                        Down
-                    {% endif %}
-                    {% if d.uptime_pct is not none %}
-                        · {{ d.uptime_pct }}% uptime
-                    {% endif %}
-                </p>
-                {% if d.sparkline %}
-                <svg class="sparkline" viewBox="0 0 60 20" preserveAspectRatio="none">
-                    <polyline points="{{ d.sparkline }}" fill="none" stroke="currentColor" stroke-width="1.5"/>
-                </svg>
-                {% endif %}
-                {% if d.monitor_type.value == 'icmp_snmp' and d.is_up and not d.snmp_sys_name %}
-                <p class="snmp-warning">⚠ SNMP not responding</p>
-                {% endif %}
-                {% if d.monitor_type.value == 'icmp_snmp' and d.snmp_sys_name %}
-                <p class="snmp-info">{{ d.snmp_sys_name }} · uptime {{ d.snmp_uptime }}</p>
-                {% endif %}
-                {% if d.last_checked_local %}
-                <p class="timestamp">Last checked: {{ d.last_checked_local.strftime("%H:%M:%S") }}</p>
-                {% endif %}
+            <p class="ip">{{ d.ip_address }}</p>
+
+            <div class="stat-grid">
+                <div class="stat-cell">
+                    <span class="stat-label">Status</span>
+                    <span class="stat-value {{ 'up' if d.is_up else ('down' if d.is_up is not none else '') }}">
+                        {% if d.is_up is none %}—{% elif d.is_up %}Up{% else %}Down{% endif %}
+                    </span>
+                </div>
+                <div class="stat-cell">
+                    <span class="stat-label">Latency</span>
+                    <span class="stat-value">{{ "%.0f"|format(d.last_response_ms) ~ " ms" if d.last_response_ms else "—" }}</span>
+                </div>
+                <div class="stat-cell">
+                    <span class="stat-label">Uptime</span>
+                    <span class="stat-value">{{ d.uptime_pct ~ "%" if d.uptime_pct is not none else "—" }}</span>
+                </div>
             </div>
+
+            {% if d.sparkline %}
+            <svg class="sparkline" viewBox="0 0 60 20" preserveAspectRatio="none">
+                <polyline points="{{ d.sparkline }}" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+            {% endif %}
+
+            {% if d.monitor_type.value == 'icmp_snmp' and d.is_up and not d.snmp_sys_name %}
+            <p class="snmp-warning">SNMP not responding</p>
+            {% endif %}
+            {% if d.monitor_type.value == 'icmp_snmp' and d.snmp_sys_name %}
+            <p class="snmp-info">{{ d.snmp_sys_name }}</p>
+            <p class="snmp-info">Uptime: {{ d.snmp_uptime }}</p>
+            {% endif %}
+
+            {% if d.last_checked_local %}
+            <p class="timestamp">Last checked {{ d.last_checked_local.strftime("%H:%M:%S") }}</p>
+            {% endif %}
         </div>
         {% endfor %}
     </div>

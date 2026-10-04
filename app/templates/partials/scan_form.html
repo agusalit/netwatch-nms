@@ -1,0 +1,38 @@
+<form hx-post="/scan" hx-target="#scan-container" hx-swap="innerHTML">
+    <label>Network Range (CIDR)</label>
+    <input type="text" name="cidr" placeholder="192.168.1.0/24" required value="{{ cidr }}">
+    <p class="field-hint">Max 256 addresses (a /24 or smaller).</p>
+    <div class="modal-actions">
+        <button type="button" class="btn-secondary" onclick="document.getElementById('scan-modal').classList.add('hidden')">Close</button>
+        <button type="submit" class="btn-primary">Scan</button>
+    </div>
+</form>
+
+{% if error %}
+<p class="form-error">{{ error }}</p>
+{% endif %}
+
+{% if results is not none %}
+<div class="scan-results">
+    <p class="muted">Scanned {{ scanned_count }} addresses — {{ results|length }} new device(s) found.</p>
+    {% if results %}
+    <ul class="scan-list">
+        {% for r in results %}
+        <li class="scan-row">
+            <span class="ip">{{ r.ip }}</span>
+            <span class="meta">{{ r.response_ms }} ms</span>
+            <button class="btn-secondary scan-add-btn"
+                    hx-get="/devices/new?ip={{ r.ip }}"
+                    hx-target="#device-form-container"
+                    hx-swap="innerHTML"
+                    onclick="document.getElementById('scan-modal').classList.add('hidden'); document.getElementById('add-device-modal').classList.remove('hidden');">
+                + Add
+            </button>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">No new devices found — everything responding is already registered.</p>
+    {% endif %}
+</div>
+{% endif %}
