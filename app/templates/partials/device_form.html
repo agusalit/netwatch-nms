@@ -8,23 +8,23 @@
       hx-target="#device-grid"
       hx-swap="innerHTML">
 
-    <label>Name</label>
-    <input type="text" name="name" required placeholder="e.g. Room 204 AP"
+    <label for="field-name">Name</label>
+    <input id="field-name" type="text" name="name" required placeholder="e.g. Room 204 AP"
            value="{{ device.name if is_edit else '' }}">
 
-    <label>IP Address</label>
-    <input type="text" name="ip_address" required placeholder="192.168.1.10"
+    <label for="field-ip">IP Address</label>
+    <input id="field-ip" type="text" name="ip_address" required placeholder="192.168.1.10"
            value="{{ device.ip_address if is_edit else (prefill_ip or '') }}">
 
-    <label>Group</label>
-    <select name="group">
+    <label for="field-group">Group</label>
+    <select id="field-group" name="group">
         {% for g in groups %}
         <option value="{{ g.value }}" {% if is_edit and device.group.value == g.value %}selected{% endif %}>{{ g.value }}</option>
         {% endfor %}
     </select>
 
-    <label>Monitor Type</label>
-    <select name="monitor_type"
+    <label for="field-monitor-type">Monitor Type</label>
+    <select id="field-monitor-type" name="monitor_type"
             onchange="document.getElementById('snmp-fields').classList.toggle('hidden', this.value !== 'icmp_snmp')">
         {% for m in monitor_types %}
         <option value="{{ m.value }}" {% if is_edit and device.monitor_type.value == m.value %}selected{% endif %}>{{ m.value }}</option>
@@ -32,22 +32,22 @@
     </select>
 
     <div id="snmp-fields" class="{{ '' if (is_edit and device.monitor_type.value == 'icmp_snmp') else 'hidden' }}">
-        <label>SNMP Community</label>
-        <input type="text" name="snmp_community" value="{{ device.snmp_community if is_edit else 'public' }}">
-        <label>SNMP Version</label>
-        <select name="snmp_version">
+        <label for="field-snmp-community">SNMP Community</label>
+        <input id="field-snmp-community" type="text" name="snmp_community" value="{{ device.snmp_community if is_edit else 'public' }}">
+        <label for="field-snmp-version">SNMP Version</label>
+        <select id="field-snmp-version" name="snmp_version">
             <option value="2c" {% if is_edit and device.snmp_version == '1' %}{% else %}selected{% endif %}>v2c</option>
             <option value="1" {% if is_edit and device.snmp_version == '1' %}selected{% endif %}>v1</option>
         </select>
-        <label>SNMP Port</label>
-        <input type="number" name="snmp_port" value="{{ device.snmp_port if is_edit else 161 }}">
-        <label>Interface Index(es) (ifIndex)</label>
-        <input type="text" name="snmp_if_indexes" placeholder="e.g. 1 or 1,2,4"
+        <label for="field-snmp-port">SNMP Port</label>
+        <input id="field-snmp-port" type="number" name="snmp_port" value="{{ device.snmp_port if is_edit else 161 }}">
+        <label for="field-snmp-if-indexes">Interface Index(es) (ifIndex)</label>
+        <input id="field-snmp-if-indexes" type="text" name="snmp_if_indexes" placeholder="e.g. 1 or 1,2,4"
                value="{{ device.snmp_if_indexes if is_edit else '1' }}">
         <p class="field-hint">Comma-separated for multiple interfaces on one device.</p>
     </div>
 
-    <div id="form-error" class="form-error"></div>
+    <div id="form-error" class="form-error" role="alert"></div>
 
     <div class="modal-actions">
         <button type="button" class="btn-secondary" onclick="document.getElementById('add-device-modal').classList.add('hidden')">Cancel</button>

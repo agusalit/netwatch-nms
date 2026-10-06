@@ -8,17 +8,26 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import SESSION_SECRET_KEY
+from app.logging_config import configure_logging
 from app.models.database import init_db
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.services.polling import poll_all_devices
+from app.startup_checks import run_startup_checks
 from app.routes import devices, auth, scan
 
+configure_logging()
 logger = logging.getLogger("nms.startup")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    run_startup_checks()
     init_db()
+    # Run in a worker thread, not directly on the event loop — poll_all_devices()
+    # calls asyncio.run() internally (for the SNMP checks), which fails if called
+    # from a thread that already has a running event loop, as this async function's
+    # thread does. APScheduler's later polls don't hit this since they already run
+    # in their own worker thread.
     await asyncio.to_thread(poll_all_devices)
     start_scheduler()
     yield

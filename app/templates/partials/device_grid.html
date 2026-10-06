@@ -1,3 +1,25 @@
+{% if summary and summary.total == 0 %}
+<div class="empty-state">
+    <h2>No devices yet</h2>
+    <p class="muted">Add one manually, or scan your network to find what's already online.</p>
+    <div class="empty-state-actions">
+        <button class="btn-primary"
+                hx-get="/devices/new"
+                hx-target="#device-form-container"
+                hx-swap="innerHTML"
+                onclick="document.getElementById('add-device-modal').classList.remove('hidden')">
+            + Add Device
+        </button>
+        <button class="btn-secondary"
+                hx-get="/scan/new"
+                hx-target="#scan-container"
+                hx-swap="innerHTML"
+                onclick="document.getElementById('scan-modal').classList.remove('hidden')">
+            Scan Network
+        </button>
+    </div>
+</div>
+{% else %}
 {% if summary %}
 <div class="summary-bar">
     <span class="summary-item up">{{ summary.up }} Up</span>
@@ -19,12 +41,12 @@
             <div class="card-header">
                 <span class="status-dot"></span>
                 <strong>{{ d.name }}</strong>
-                <button class="btn-edit"
+                <button class="btn-edit" aria-label="Edit {{ d.name }}"
                         hx-get="/devices/{{ d.id }}/edit"
                         hx-target="#device-form-container"
                         hx-swap="innerHTML"
                         onclick="document.getElementById('add-device-modal').classList.remove('hidden')">✎</button>
-                <button class="btn-delete"
+                <button class="btn-delete" aria-label="Delete {{ d.name }}"
                         hx-delete="/devices/{{ d.id }}"
                         hx-target="#device-grid"
                         hx-swap="innerHTML"
@@ -74,3 +96,4 @@
     {% endif %}
 </section>
 {% endfor %}
+{% endif %}

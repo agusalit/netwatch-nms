@@ -14,12 +14,12 @@
     <div class="login-card">
         <h1>NetWatch <span class="accent">NMS</span></h1>
         <form method="post" action="/login">
-            <label>Username</label>
-            <input type="text" name="username" required autofocus>
-            <label>Password</label>
-            <input type="password" name="password" required>
+            <label for="field-username">Username</label>
+            <input id="field-username" type="text" name="username" required autofocus>
+            <label for="field-password">Password</label>
+            <input id="field-password" type="password" name="password" required>
             {% if error %}
-            <p class="login-error">{{ error }}</p>
+            <p class="login-error" role="alert">{{ error }}</p>
             {% endif %}
             <button type="submit" class="btn-primary login-submit">Log In</button>
         </form>

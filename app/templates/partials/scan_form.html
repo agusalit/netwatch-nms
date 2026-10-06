@@ -1,6 +1,6 @@
 <form hx-post="/scan" hx-target="#scan-container" hx-swap="innerHTML">
-    <label>Network Range (CIDR)</label>
-    <input type="text" name="cidr" placeholder="192.168.1.0/24" required value="{{ cidr }}">
+    <label for="field-cidr">Network Range (CIDR)</label>
+    <input id="field-cidr" type="text" name="cidr" placeholder="192.168.1.0/24" required value="{{ cidr }}">
     <p class="field-hint">Max 256 addresses (a /24 or smaller).</p>
     <div class="modal-actions">
         <button type="button" class="btn-secondary" onclick="document.getElementById('scan-modal').classList.add('hidden')">Close</button>
@@ -9,7 +9,7 @@
 </form>
 
 {% if error %}
-<p class="form-error">{{ error }}</p>
+<p class="form-error" role="alert">{{ error }}</p>
 {% endif %}
 
 {% if results is not none %}
@@ -21,7 +21,7 @@
         <li class="scan-row">
             <span class="ip">{{ r.ip }}</span>
             <span class="meta">{{ r.response_ms }} ms</span>
-            <button class="btn-secondary scan-add-btn"
+            <button class="btn-secondary scan-add-btn" aria-label="Add device at {{ r.ip }}"
                     hx-get="/devices/new?ip={{ r.ip }}"
                     hx-target="#device-form-container"
                     hx-swap="innerHTML"
