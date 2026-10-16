@@ -10,23 +10,26 @@ from app.auth import require_login
 from app.config import PING_TIMEOUT_SECONDS
 from app.models.database import get_db
 from app.models.device import Device
+from app.segments import scannable_segments
 from app.templating import templates
 
 router = APIRouter()
 logger = logging.getLogger("nms.scan")
 
-# Caps scan size at a /24 — keeps scan time bounded and avoids someone
-# accidentally sweeping a /8 from a basic internship-scope tool.
 MAX_SCAN_HOSTS = 256
+
+
+def _render(request: Request, **context):
+    context.setdefault("cidr", "")
+    context.setdefault("error", None)
+    context.setdefault("results", None)
+    context["segments"] = scannable_segments()
+    return templates.TemplateResponse(request=request, name="partials/scan_form.html", context=context)
 
 
 @router.get("/scan/new", response_class=HTMLResponse)
 def scan_form(request: Request, user: str = Depends(require_login)):
-    return templates.TemplateResponse(
-        request=request,
-        name="partials/scan_form.html",
-        context={"error": None, "results": None, "cidr": ""},
-    )
+    return _render(request)
 
 
 @router.post("/scan", response_class=HTMLResponse)
@@ -39,33 +42,23 @@ def run_scan(
     try:
         network = ipaddress.ip_network(cidr, strict=False)
     except ValueError:
-        return templates.TemplateResponse(
-            request=request,
-            name="partials/scan_form.html",
-            context={
-                "error": f"'{cidr}' is not a valid network range (e.g. 192.168.1.0/24).",
-                "results": None,
-                "cidr": cidr,
-            },
+        return _render(
+            request,
+            cidr=cidr,
+            error=f"'{cidr}' is not a valid network range (e.g. 192.168.1.0/24).",
         )
 
     if network.num_addresses > MAX_SCAN_HOSTS:
-        return templates.TemplateResponse(
-            request=request,
-            name="partials/scan_form.html",
-            context={
-                "error": f"Range too large ({network.num_addresses} addresses) — "
-                         f"max {MAX_SCAN_HOSTS} (a /24 or smaller).",
-                "results": None,
-                "cidr": cidr,
-            },
+        return _render(
+            request,
+            cidr=cidr,
+            error=f"Range too large ({network.num_addresses} addresses) — "
+                  f"max {MAX_SCAN_HOSTS} (a /24 or smaller).",
         )
 
     addresses = [str(ip) for ip in network.hosts()]
     existing_ips = {row[0] for row in db.query(Device.ip_address).all()}
 
-    # multiping checks all addresses concurrently (not one at a time) —
-    # a /24 completes in roughly one PING_TIMEOUT_SECONDS window, not 254x it.
     hosts = multiping(addresses, count=1, timeout=PING_TIMEOUT_SECONDS, privileged=False)
 
     discovered = [
@@ -75,13 +68,9 @@ def run_scan(
     ]
     discovered.sort(key=lambda d: tuple(int(p) for p in d["ip"].split(".")))
 
-    return templates.TemplateResponse(
-        request=request,
-        name="partials/scan_form.html",
-        context={
-            "error": None,
-            "results": discovered,
-            "scanned_count": len(addresses),
-            "cidr": cidr,
-        },
+    return _render(
+        request,
+        cidr=cidr,
+        results=discovered,
+        scanned_count=len(addresses),
     )

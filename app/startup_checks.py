@@ -1,6 +1,7 @@
 import logging
 
 from app import config
+from app.segments import parse_segments
 
 logger = logging.getLogger("nms.startup")
 
@@ -27,3 +28,20 @@ def run_startup_checks():
         )
     elif not has_token:
         logger.info("Telegram alerts are not configured (TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID empty).")
+
+    _check_segments()
+
+
+def _check_segments():
+    """Reports the configured network segments, and any entry that was
+    silently skipped because it isn't a valid name=CIDR pair."""
+    entries = [part.strip() for part in config.NETWORK_SEGMENTS.split(",") if part.strip()]
+    parsed = parse_segments(config.NETWORK_SEGMENTS)
+    if len(parsed) != len(entries):
+        logger.warning(
+            "NETWORK_SEGMENTS has %d entries but only %d are valid name=CIDR pairs "
+            "(e.g. wired=192.168.1.0/24); the rest are ignored.",
+            len(entries), len(parsed),
+        )
+    if parsed:
+        logger.info("Network segments: " + ", ".join(f"{name}={network}" for name, network in parsed))

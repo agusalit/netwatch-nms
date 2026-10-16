@@ -1,13 +1,14 @@
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
+from sqlalchemy import case, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import require_login
-from app.config import DISPLAY_TIMEZONE
+from app.config import DISPLAY_TIMEZONE, STATUS_HISTORY_KEEP
 from app.models.database import get_db
 from app.models.device import Device, DeviceGroup, MonitorType
 from app.models.status_log import StatusLog
@@ -15,6 +16,7 @@ from app.templating import templates
 
 router = APIRouter()
 _DISPLAY_TZ = ZoneInfo(DISPLAY_TIMEZONE)
+UPTIME_WINDOW = timedelta(hours=24)
 
 
 def _to_local(dt):
@@ -33,7 +35,7 @@ def _sparkline_points(values, width=60, height=20):
     if not values or len(values) < 2:
         return ""
     lo, hi = min(values), max(values)
-    rng = (hi - lo) or 1  # avoid divide-by-zero when all values are equal
+    rng = (hi - lo) or 1
     n = len(values)
     points = []
     for i, v in enumerate(values):
@@ -44,25 +46,39 @@ def _sparkline_points(values, width=60, height=20):
 
 
 def _attach_stats(db: Session, devices):
-    """Attaches uptime_pct and sparkline (computed, not persisted) to each
-    device for the dashboard. One query per device — fine at internship/
-    thesis scale (a handful to a few dozen devices); would want a single
-    batched query if this ever needs to scale to hundreds."""
+    """Attaches uptime_pct (last 24 h) and sparkline (latest STATUS_HISTORY_KEEP
+    readings) to each device for the dashboard — computed, not persisted.
+
+    StatusLog is never pruned, so nothing here may scan a device's whole
+    history: uptime comes from one grouped query over a 24 h window, and the
+    sparkline from one small LIMITed query per device. Both ride on the
+    (device_id, checked_at) index."""
+    since = datetime.now(timezone.utc).replace(tzinfo=None) - UPTIME_WINDOW
+    rows = (
+        db.query(
+            StatusLog.device_id,
+            func.count(StatusLog.id),
+            func.sum(case((StatusLog.is_up.is_(True), 1), else_=0)),
+        )
+        .filter(StatusLog.checked_at >= since)
+        .group_by(StatusLog.device_id)
+        .all()
+    )
+    window = {device_id: (total, up or 0) for device_id, total, up in rows}
+
     for d in devices:
-        logs = (
-            db.query(StatusLog)
+        total, up = window.get(d.id, (0, 0))
+        d.uptime_pct = round(up / total * 100, 1) if total else None
+
+        recent = (
+            db.query(StatusLog.response_ms, StatusLog.is_up)
             .filter(StatusLog.device_id == d.id)
-            .order_by(StatusLog.checked_at.asc())
+            .order_by(StatusLog.checked_at.desc())
+            .limit(STATUS_HISTORY_KEEP)
             .all()
         )
-        if logs:
-            up_count = sum(1 for l in logs if l.is_up)
-            d.uptime_pct = round((up_count / len(logs)) * 100, 1)
-            response_history = [l.response_ms for l in logs if l.is_up and l.response_ms is not None]
-            d.sparkline = _sparkline_points(response_history)
-        else:
-            d.uptime_pct = None
-            d.sparkline = ""
+        response_history = [r.response_ms for r in reversed(recent) if r.is_up and r.response_ms is not None]
+        d.sparkline = _sparkline_points(response_history)
         d.last_checked_local = _to_local(d.last_checked_at)
     return devices
 
@@ -193,7 +209,7 @@ def create_device(
         db.commit()
     except IntegrityError:
         db.rollback()
-        return _grid_response(request, db, error=f"A device with IP {ip_address} already exists.")
+        return _grid_response(request, db, error=f"A device with IP {ip_address} and SNMP port {snmp_port} already exists.")
     return _grid_response(request, db)
 
 
@@ -229,7 +245,7 @@ def update_device(
         db.commit()
     except IntegrityError:
         db.rollback()
-        return _grid_response(request, db, error=f"A device with IP {ip_address} already exists.")
+        return _grid_response(request, db, error=f"A device with IP {ip_address} and SNMP port {snmp_port} already exists.")
     return _grid_response(request, db)
 
 
