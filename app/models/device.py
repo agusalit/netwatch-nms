@@ -1,15 +1,17 @@
 import enum
 
-from sqlalchemy import Column, Integer, String, Boolean, Float, DateTime, Enum
+from sqlalchemy import Column, Integer, String, Boolean, Float, DateTime, Enum, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.models.database import Base
+from app.segments import segment_for_ip
 
 
 class DeviceGroup(str, enum.Enum):
     ROOM = "Room"
     PUBLIC = "Public"
     OFFICE = "Office"
+    TESTBED = "Testbed"
 
 
 class MonitorType(str, enum.Enum):
@@ -19,25 +21,19 @@ class MonitorType(str, enum.Enum):
 
 class Device(Base):
     __tablename__ = "devices"
+    __table_args__ = (UniqueConstraint("ip_address", "snmp_port", name="uq_device_ip_port"),)
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    ip_address = Column(String, nullable=False, unique=True, index=True)
+    ip_address = Column(String, nullable=False, index=True)
     group = Column(Enum(DeviceGroup), default=DeviceGroup.ROOM, nullable=False)
     monitor_type = Column(Enum(MonitorType), default=MonitorType.ICMP, nullable=False)
-
-    # SNMP config — only relevant when monitor_type == ICMP_SNMP
     snmp_community = Column(String, default="public")
-    snmp_version = Column(String, default="2c")  # "1", "2c", or "3"
-    snmp_port = Column(Integer, default=161)
-    # Which network interface(s)' counters to poll on this device (IF-MIB
-    # ifIndex values). Comma-separated so one device can have multiple
-    # interfaces tracked (e.g. a managed switch) — each gets its own
-    # TrafficLog row per poll. Defaults to "1", the common single-interface case.
+    snmp_version = Column(String, default="2c")
+    snmp_port = Column(Integer, default=161, nullable=False)
     snmp_if_indexes = Column(String, default="1")
 
-    # Live status, updated by the polling service
-    is_up = Column(Boolean, default=None, nullable=True)  # None = not yet checked
+    is_up = Column(Boolean, default=None, nullable=True)
     last_response_ms = Column(Float, nullable=True)
     last_checked_at = Column(DateTime, nullable=True)
     snmp_sys_name = Column(String, nullable=True)
@@ -49,6 +45,11 @@ class Device(Base):
     traffic_logs = relationship(
         "TrafficLog", back_populates="device", cascade="all, delete-orphan"
     )
+
+    @property
+    def segment(self):
+        """wired / wireless / testbed / other — derived from the IP, never stored."""
+        return segment_for_ip(self.ip_address)
 
     @property
     def if_index_list(self):

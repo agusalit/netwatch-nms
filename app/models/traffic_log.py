@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, BigInteger, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, BigInteger, DateTime, ForeignKey, Index, func
 from sqlalchemy.orm import relationship
 
 from app.models.database import Base
@@ -16,12 +16,14 @@ class TrafficLog(Base):
     interval rates). Keeping the raw values here keeps this table reusable.
     """
     __tablename__ = "traffic_logs"
+    __table_args__ = (Index("ix_traffic_logs_device_recorded", "device_id", "recorded_at"),)
 
     id = Column(Integer, primary_key=True, index=True)
     device_id = Column(Integer, ForeignKey("devices.id"), nullable=False, index=True)
     recorded_at = Column(DateTime, server_default=func.now(), nullable=False, index=True)
 
     if_index = Column(Integer, nullable=False, default=1)
+    counter_bits = Column(Integer, nullable=True)
     in_octets = Column(BigInteger, nullable=True)
     out_octets = Column(BigInteger, nullable=True)
     in_errors = Column(BigInteger, nullable=True)
