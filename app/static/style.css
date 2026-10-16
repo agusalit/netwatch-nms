@@ -58,7 +58,6 @@ a, button, input, select { font-family: inherit; }
 
 .container { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
 
-/* Summary bar — plain counts, not middle-dot joined */
 .summary-bar { display: flex; gap: 0.6rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .summary-item { font-size: 0.82rem; padding: 0.3rem 0.75rem; border-radius: 4px; background: var(--panel); border: 1px solid var(--border); }
 .summary-item.up { color: var(--up); }
@@ -86,8 +85,6 @@ a, button, input, select { font-family: inherit; }
     gap: 0.9rem;
 }
 
-/* Instrument-panel card: flat, hairline border, no drop shadow — a
-   deliberate departure from the generic rounded-shadow SaaS card. */
 .device-card {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -105,7 +102,6 @@ a, button, input, select { font-family: inherit; }
 .status-up .status-dot { background: var(--up); }
 .status-down .status-dot { background: var(--down); }
 
-/* The one deliberate motion moment: a live signal pulse, up-devices only */
 @keyframes signal-pulse {
     0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5); }
     50% { opacity: 0.75; box-shadow: 0 0 0 4px rgba(52, 211, 153, 0); }
@@ -129,9 +125,14 @@ a, button, input, select { font-family: inherit; }
 .btn-delete:hover { color: var(--down); }
 
 .ip { color: var(--muted); font-size: 0.82rem; margin: 0.35rem 0 0.6rem; }
+.segment {
+    display: inline-block; margin-left: 0.4rem; padding: 0 0.4rem;
+    border: 1px solid var(--border); border-radius: 3px;
+    font-family: "IBM Plex Sans", sans-serif; font-size: 0.68rem; line-height: 1.5;
+}
+.segment-wired { color: var(--accent); border-color: var(--accent); }
+.segment-wireless { color: var(--warn); border-color: var(--warn); }
 
-/* Stat grid — replaces the old "Up · 12.3ms · 99.1%" joined line with
-   a labeled instrument readout, each stat its own cell. */
 .stat-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -188,13 +189,14 @@ a, button, input, select { font-family: inherit; }
 .form-error:empty { display: none; }
 .field-hint { color: var(--muted); font-size: 0.72rem; margin: 0.25rem 0 0; }
 
+.scan-presets { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.6rem; }
+.scan-preset { font-size: 0.75rem; padding: 0.3rem 0.6rem; }
 .scan-list { list-style: none; padding: 0; margin: 0.8rem 0 0; max-height: 260px; overflow-y: auto; }
 .scan-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
 .scan-row .ip { flex: 1; margin: 0; }
 .scan-row .meta { color: var(--muted); font-size: 0.78rem; }
 .scan-add-btn { font-size: 0.78rem; padding: 0.3rem 0.7rem; }
 
-/* Login page */
 .login-page {
     display: flex; align-items: center; justify-content: center;
     height: 100vh; margin: 0;

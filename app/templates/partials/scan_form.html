@@ -2,6 +2,15 @@
     <label for="field-cidr">Network Range (CIDR)</label>
     <input id="field-cidr" type="text" name="cidr" placeholder="192.168.1.0/24" required value="{{ cidr }}">
     <p class="field-hint">Max 256 addresses (a /24 or smaller).</p>
+    {% if segments %}
+    <div class="scan-presets">
+        {% for name, range in segments %}
+        <button type="button" class="btn-secondary scan-preset"
+                onclick="document.getElementById('field-cidr').value = '{{ range }}'">{{ name|capitalize }} {{ range }}</button>
+        {% endfor %}
+    </div>
+    <p class="field-hint">Wireless ranges mostly hold guest devices. Add only infrastructure such as access points.</p>
+    {% endif %}
     <div class="modal-actions">
         <button type="button" class="btn-secondary" onclick="document.getElementById('scan-modal').classList.add('hidden')">Close</button>
         <button type="submit" class="btn-primary">Scan</button>

@@ -31,6 +31,7 @@
 </div>
 {% endif %}
 {% for group_name, devices in grouped_devices.items() %}
+{% if group_name != 'Testbed' or devices %}
 <section class="group-section">
     <h2>{{ group_name }} <span class="count">({{ devices|length }})</span></h2>
 
@@ -52,7 +53,8 @@
                         hx-swap="innerHTML"
                         hx-confirm="Remove {{ d.name }}?">×</button>
             </div>
-            <p class="ip">{{ d.ip_address }}</p>
+            <p class="ip">{{ d.ip_address }}{% if d.monitor_type.value == 'icmp_snmp' and d.snmp_port != 161 %}:{{ d.snmp_port }}{% endif %}
+                <span class="segment segment-{{ d.segment }}">{{ d.segment }}</span></p>
 
             <div class="stat-grid">
                 <div class="stat-cell">
@@ -66,7 +68,7 @@
                     <span class="stat-value">{{ "%.0f"|format(d.last_response_ms) ~ " ms" if d.last_response_ms else "—" }}</span>
                 </div>
                 <div class="stat-cell">
-                    <span class="stat-label">Uptime</span>
+                    <span class="stat-label">Uptime 24h</span>
                     <span class="stat-value">{{ d.uptime_pct ~ "%" if d.uptime_pct is not none else "—" }}</span>
                 </div>
             </div>
@@ -95,5 +97,6 @@
     <p class="muted">No devices in this group yet.</p>
     {% endif %}
 </section>
+{% endif %}
 {% endfor %}
 {% endif %}
