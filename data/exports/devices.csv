@@ -1,3 +1,0 @@
-id,name,ip_address,group,monitor_type,snmp_if_indexes
-1,Test SNMP,127.0.0.1,Public,icmp_snmp,1
-2,Main Router Office,192.168.1.1,Office,icmp,1

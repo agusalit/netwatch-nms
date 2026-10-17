@@ -41,7 +41,9 @@ def _export_devices(devices, output_dir, fmt):
         "name": d.name,
         "ip_address": d.ip_address,
         "group": d.group.value,
+        "segment": d.segment,
         "monitor_type": d.monitor_type.value,
+        "snmp_port": d.snmp_port,
         "snmp_if_indexes": d.snmp_if_indexes,
     } for d in devices.values()]
     _write(rows, output_dir / f"devices.{fmt}", fmt)
@@ -60,9 +62,12 @@ def _export_status_logs(db, devices, output_dir, fmt, since):
         "device_name": devices[s.device_id].name,
         "device_ip": devices[s.device_id].ip_address,
         "device_group": devices[s.device_id].group.value,
+        "segment": devices[s.device_id].segment,
         "checked_at_utc": s.checked_at.isoformat(),
         "is_up": s.is_up,
         "response_ms": s.response_ms,
+        "jitter_ms": s.jitter_ms,
+        "packet_loss": s.packet_loss,
     } for s in logs]
     _write(rows, output_dir / f"status_logs.{fmt}", fmt)
     return len(rows)
@@ -80,8 +85,11 @@ def _export_traffic_logs(db, devices, output_dir, fmt, since):
         "device_name": devices[t.device_id].name,
         "device_ip": devices[t.device_id].ip_address,
         "device_group": devices[t.device_id].group.value,
+        "segment": devices[t.device_id].segment,
+        "device_snmp_port": devices[t.device_id].snmp_port,
         "if_index": t.if_index,
         "recorded_at_utc": t.recorded_at.isoformat(),
+        "counter_bits": t.counter_bits,
         "in_octets": t.in_octets,
         "out_octets": t.out_octets,
         "in_errors": t.in_errors,
@@ -133,9 +141,8 @@ def main():
 
         print(f"Exported to {output_dir}/ :")
         print(f"  devices.{args.format}       — {n_devices} rows")
-        print(f"  status_logs.{args.format}   — {n_status} rows"
-              + (" (StatusLog is pruned — only the current rolling window exists)" if n_status else ""))
-        print(f"  traffic_logs.{args.format}  — {n_traffic} rows (full history, unpruned)")
+        print(f"  status_logs.{args.format}   — {n_status} rows (ICMP: latency, jitter, packet loss)")
+        print(f"  traffic_logs.{args.format}  — {n_traffic} rows (SNMP interface counters)")
     finally:
         db.close()
 

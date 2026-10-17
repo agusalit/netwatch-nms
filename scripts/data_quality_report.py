@@ -42,7 +42,8 @@ def analyze_device(db, device: Device, gap_threshold_multiplier: float):
         .all()
     )
 
-    print(f"\n=== Device: {device.name} ({device.ip_address}) [{device.group.value}] ===")
+    print(f"\n=== Device: {device.name} ({device.ip_address}:{device.snmp_port}) "
+          f"[{device.group.value} / {device.segment}] ===")
 
     if not status_logs:
         print("  No status history yet.")
@@ -62,9 +63,12 @@ def analyze_device(db, device: Device, gap_threshold_multiplier: float):
           f"-> {completeness_pct}% completeness")
     print(f"  Uptime over window: {uptime_pct}%")
 
-    # NOTE: StatusLog is pruned to STATUS_HISTORY_KEEP rows — this completeness
-    # figure reflects only the current rolling window, not full project history.
-    # TrafficLog is NOT pruned, so its count below reflects true total history.
+    losses = [s.packet_loss for s in status_logs if s.packet_loss is not None]
+    jitters = [s.jitter_ms for s in status_logs if s.jitter_ms is not None]
+    if losses:
+        print(f"  Mean packet loss per sweep: {sum(losses) / len(losses) * 100:.2f}%")
+    if jitters:
+        print(f"  Mean jitter (when up): {sum(jitters) / len(jitters):.2f} ms")
 
     gaps = []
     threshold = PING_INTERVAL_SECONDS * gap_threshold_multiplier

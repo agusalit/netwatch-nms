@@ -1,0 +1,11 @@
+# Copy to data/devices.csv, replace the examples with your real targets, then:
+#   python scripts/import_devices.py data/devices.csv --dry-run
+#   python scripts/import_devices.py data/devices.csv
+#
+# group: Room, Public, Office      monitor_type: icmp, icmp_snmp
+# snmp_* columns only matter for icmp_snmp devices (leave empty otherwise).
+# Wireless subnet: list access points / controllers, not guest phones.
+name,ip_address,group,monitor_type,snmp_community,snmp_version,snmp_port,snmp_if_indexes
+Main Router Office,192.168.1.1,Office,icmp,,,,
+Example Wired Switch,192.168.1.2,Office,icmp,,,,
+Example Lobby AP,192.168.110.2,Public,icmp,,,,

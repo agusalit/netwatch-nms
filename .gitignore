@@ -219,3 +219,9 @@ __marimo__/
 
 # Docker
 .dockerignore
+
+project_structure.txt
+
+/archive
+/data/devices.csv
+/data/devices.tv-optional.csv
