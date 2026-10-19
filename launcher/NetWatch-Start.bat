@@ -2,7 +2,7 @@
 setlocal
 
 rem ---- Edit these two lines if your setup differs ----
-set DISTRO=Ubuntu
+set DISTRO=Ubuntu-26.04
 set PROJECT_DIR=~/project/git/netwatch-nms
 rem -----------------------------------------------------
 
